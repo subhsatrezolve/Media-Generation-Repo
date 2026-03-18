@@ -301,9 +301,11 @@ async def generate_image(
     summary["output"] = final.get("output")
     summary["response"] = final
 
-    image_urls, _ = _collect_media_urls(final)
+    image_urls, video_urls = _collect_media_urls(final)
     if image_urls:
         summary["image_urls"] = image_urls
+    if video_urls:
+        summary["video_urls"] = video_urls
 
     status_l = str(summary.get("status") or "").lower()
     if status_l in {"failed", "error", "nsfw", "timeout", "canceled", "cancelled"}:
@@ -359,12 +361,17 @@ async def generate_video(
     summary["output"] = final.get("output")
     summary["response"] = final
 
-    image_urls, _ = _collect_media_urls(final)
+    image_urls, video_urls = _collect_media_urls(final)
     if image_urls:
         summary["image_urls"] = image_urls
+    if video_urls:
+        summary["video_urls"] = video_urls
 
     status_l = str(summary.get("status") or "").lower()
     if status_l in {"failed", "error", "nsfw", "timeout", "canceled", "cancelled"}:
         summary["error"] = _extract_error_text(final) or f"Higgsfield request ended with status={summary['status']}"
 
     return summary
+
+
+

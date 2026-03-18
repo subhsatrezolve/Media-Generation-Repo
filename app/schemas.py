@@ -237,7 +237,7 @@ class HiggsfieldGenerateImageRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "prompt": "fashion portrait, studio light",
+                "prompt": "A futuristic eco-friendly city at sunrise, ultra detailed",
                 "model_id": "higgsfield-ai/soul/standard",
                 "aspect_ratio": "9:16",
                 "poll": True,

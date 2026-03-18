@@ -135,7 +135,7 @@ Text-to-image example:
 curl -X POST "https://api.freepik.com/v1/ai/text-to-image/flux-dev" \
   -H "x-freepik-api-key: YOUR_FREEPIK_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"fashion portrait, studio light","aspect_ratio":"9:16"}'
+  -d '{"prompt":"A futuristic eco-friendly city at sunrise, ultra detailed","aspect_ratio":"9:16"}'
 ```
 
 Get task status example:
@@ -152,7 +152,7 @@ curl -X POST "https://platform.higgsfield.ai/higgsfield-ai/soul/standard" \
   -H "Authorization: Key {api_key}:{api_key_secret}" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
-  -d '{"prompt":"fashion portrait, studio light","aspect_ratio":"9:16","resolution":"720p"}'
+  -d '{"prompt":"A futuristic eco-friendly city at sunrise, ultra detailed","aspect_ratio":"9:16","resolution":"720p"}'
 ```
 
 Status polling example:

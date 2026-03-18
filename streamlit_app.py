@@ -1,4 +1,6 @@
-import re
+import time
+from datetime import datetime, timezone
+from functools import wraps
 from typing import Any
 
 import httpx
@@ -7,54 +9,34 @@ import streamlit as st
 API_BASE_DEFAULT = "http://127.0.0.1:8000"
 DEFAULT_IMAGE_URL = "https://d3u0tzju9qaucj.cloudfront.net/49383509-d21f-4835-962a-7467c3c7a063/d7b4a329-e3b0-49c4-b473-2d998b232fc9.png"
 
-FREEPIK_LLM_FULL_URL = "https://docs.freepik.com/llms-full.txt"
-HIGGSFIELD_IMAGES_URL = "https://docs.higgsfield.ai/guides/images.md"
-HIGGSFIELD_VIDEO_URL = "https://docs.higgsfield.ai/guides/video.md"
-
-# Fallback lists if docs fetch fails.
-FREEPIK_IMAGE_MODELS_FALLBACK = [
-    "flux-2-pro",
-    "flux-2-turbo",
-    "flux-dev",
-    "flux-kontext-pro",
-    "flux-pro-v1-1",
-    "hyperflux",
-    "runway",
-    "seedream",
-    "seedream-v4",
-    "seedream-v4-5",
-    "seedream-v4-5-edit",
-    "seedream-v4-edit",
-    "seedream-v5-lite",
-    "seedream-v5-lite-edit",
-    "z-image",
+PROMPT_TO_IMAGE_MODELS: list[dict[str, Any]] = [
+    {"label": "flux-2-pro (freepik)", "provider": "freepik", "kind": "image", "id": "flux-2-pro"},
+    {"label": "flux-2-turbo (freepik)", "provider": "freepik", "kind": "image", "id": "flux-2-turbo"},
+    {"label": "flux-dev (freepik)", "provider": "freepik", "kind": "image", "id": "flux-dev"},
+    {"label": "flux-pro-v1-1 (freepik)", "provider": "freepik", "kind": "image", "id": "flux-pro-v1-1"},
+    {"label": "seedream-v5-lite (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v5-lite"},
+    {"label": "runway (freepik)", "provider": "freepik", "kind": "image", "id": "runway"},
+    {"label": "higgsfield-ai/soul/standard (higgsfield)", "provider": "higgsfield", "kind": "image", "id": "higgsfield-ai/soul/standard"},
 ]
 
-FREEPIK_VIDEO_MODELS_FALLBACK = [
-    "kling-v2-6-pro",
-    "kling-v2-5-pro",
-    "kling-v2-1-pro",
-    "minimax-hailuo-2-3-1080p",
-    "runway-gen4-turbo",
-    "seedance-pro-1080p",
-    "seedance-lite-1080p",
-    "wan-2-5-i2v-1080p",
-    "wan-v2-6-1080p",
-    "pixverse-v5",
+IMAGE_TO_VIDEO_MODELS: list[dict[str, Any]] = [
+    {"label": "kling-v2-6-pro (freepik)", "provider": "freepik", "kind": "video", "id": "kling-v2-6-pro"},
+    {"label": "kling-v3-pro (freepik, preferred upgrade)", "provider": "freepik", "kind": "video", "id": "kling-v3-pro"},
+    {"label": "runway-gen4-turbo (freepik)", "provider": "freepik", "kind": "video", "id": "runway-gen4-turbo"},
+    {"label": "minimax-hailuo-2-3-1080p (freepik)", "provider": "freepik", "kind": "video", "id": "minimax-hailuo-2-3-1080p"},
+    {"label": "ltx-2-pro (freepik)", "provider": "freepik", "kind": "video", "id": "ltx-2-pro"},
+    {"label": "wan-v2-6-1080p (freepik)", "provider": "freepik", "kind": "video", "id": "wan-v2-6-1080p"},
+    {"label": "seedance-1-5-pro-1080p (freepik)", "provider": "freepik", "kind": "video", "id": "seedance-1-5-pro-1080p"},
 ]
 
-HIGGSFIELD_IMAGE_MODELS_FALLBACK = [
-    "higgsfield-ai/soul/standard",
-    "reve/text-to-image",
-    "bytedance/seedream/v4/edit",
-]
-
-HIGGSFIELD_VIDEO_MODELS_FALLBACK = [
-    "higgsfield-ai/dop/standard",
-    "higgsfield-ai/dop/lite",
-    "higgsfield-ai/dop/turbo",
-    "bytedance/seedance/v1/pro/image-to-video",
-    "kling-video/v2.1/pro/image-to-video",
+EDIT_MODELS: list[dict[str, Any]] = [
+    {"label": "seedream-v4-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v4-edit", "needs_image": True},
+    {"label": "seedream-v4-5-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v4-5-edit", "needs_image": True},
+    {"label": "seedream-v5-lite-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v5-lite-edit", "needs_image": True},
+    {"label": "gpt-1.5 (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5", "needs_image": True},
+    {"label": "gpt-1.5-high (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5-high", "needs_image": True},
+    {"label": "flux-kontext-pro (freepik)", "provider": "freepik", "kind": "image", "id": "flux-kontext-pro", "needs_image": True},
+    {"label": "higgsfield-ai/soul/reference (higgsfield)", "provider": "higgsfield", "kind": "image", "id": "higgsfield-ai/soul/reference", "needs_image": True},
 ]
 
 
@@ -70,43 +52,11 @@ def _safe_json_loads(raw: str) -> dict[str, Any] | None:
     return None
 
 
-@st.cache_data(ttl=1800)
-def fetch_freepik_models() -> tuple[list[str], list[str], str]:
-    try:
-        text = httpx.get(FREEPIK_LLM_FULL_URL, timeout=30).text
-        image_models = sorted(set(re.findall(r"post /v1/ai/text-to-image/([a-zA-Z0-9._-]+)", text)))
-        video_models = sorted(set(re.findall(r"post /v1/ai/image-to-video/([a-zA-Z0-9._-]+)", text)))
-        if image_models and video_models:
-            return image_models, video_models, "live-docs"
-    except Exception:
-        pass
-    return FREEPIK_IMAGE_MODELS_FALLBACK, FREEPIK_VIDEO_MODELS_FALLBACK, "fallback"
-
-
-@st.cache_data(ttl=1800)
-def fetch_higgsfield_models() -> tuple[list[str], list[str], str]:
-    try:
-        image_doc = httpx.get(HIGGSFIELD_IMAGES_URL, timeout=30).text
-        video_doc = httpx.get(HIGGSFIELD_VIDEO_URL, timeout=30).text
-
-        image_models = set(re.findall(r"`([a-z0-9-]+/[a-z0-9.-]+(?:/[a-z0-9./-]+)?)`", image_doc))
-        image_models.update(re.findall(r"https://platform\\.higgsfield\\.ai/([a-z0-9-]+/[a-z0-9./-]+)", image_doc))
-
-        video_models = set(re.findall(r"`([a-z0-9-]+/[a-z0-9.-]+(?:/[a-z0-9./-]+)?)`", video_doc))
-        video_models.update(re.findall(r"https://platform\\.higgsfield\\.ai/([a-z0-9-]+/[a-z0-9./-]+)", video_doc))
-
-        image_models = {m for m in image_models if not m.startswith("requests/")}
-        video_models = {m for m in video_models if not m.startswith("requests/")}
-
-        image_sorted = sorted(m for m in image_models if ("text-to-image" in m or "soul" in m or "seedream" in m or "reve" in m))
-        video_sorted = sorted(m for m in video_models if ("video" in m or "dop" in m or "seedance" in m or "kling" in m))
-
-        if image_sorted and video_sorted:
-            return image_sorted, video_sorted, "live-docs"
-    except Exception:
-        pass
-
-    return HIGGSFIELD_IMAGE_MODELS_FALLBACK, HIGGSFIELD_VIDEO_MODELS_FALLBACK, "fallback"
+def _find_model(models: list[dict[str, Any]], label: str) -> dict[str, Any]:
+    for model in models:
+        if model["label"] == label:
+            return model
+    return models[0]
 
 
 def freepik_video_aspect_options(model: str) -> list[str]:
@@ -130,6 +80,26 @@ def freepik_image_aspect_options(model: str) -> list[str]:
     ]
 
 
+def higgsfield_image_aspect_options() -> list[str]:
+    return ["9:16", "16:9", "4:3", "3:4", "1:1", "2:3", "3:2"]
+
+
+def _normalize_aspect_ratio(provider: str, aspect_ratio: str) -> str:
+    if provider != "higgsfield":
+        return aspect_ratio
+
+    mapping = {
+        "square_1_1": "1:1",
+        "widescreen_16_9": "16:9",
+        "social_story_9_16": "9:16",
+        "classic_4_3": "4:3",
+        "traditional_3_4": "3:4",
+        "standard_3_2": "3:2",
+        "portrait_2_3": "2:3",
+    }
+    return mapping.get((aspect_ratio or "").strip(), aspect_ratio)
+
+
 def freepik_model_needs_input_image(model: str) -> bool:
     m = (model or "").lower()
     return ("kontext" in m) or m.endswith("-edit") or ("edit" in m)
@@ -137,7 +107,128 @@ def freepik_model_needs_input_image(model: str) -> bool:
 
 def higgsfield_model_needs_image_input(model: str) -> bool:
     m = (model or "").lower()
-    return ("seedream" in m and "edit" in m) or m.endswith("/edit")
+    return ("seedream" in m and "edit" in m) or m.endswith("/edit") or m.endswith("/reference")
+
+
+def _run_one_model(
+    api_base: str,
+    model_cfg: dict[str, Any],
+    prompt: str,
+    source_image_url: str,
+    aspect_ratio: str,
+    extra_raw: str,
+    duration_seconds: int,
+    camera_fixed: bool,
+    poll: bool = True,
+) -> dict[str, Any]:
+    provider = model_cfg["provider"]
+    model_id = model_cfg["id"]
+    kind = model_cfg["kind"]
+    normalized_aspect_ratio = _normalize_aspect_ratio(provider, aspect_ratio)
+    extra_data = _safe_json_loads(extra_raw) or {}
+
+    if provider == "freepik" and kind == "image":
+        if model_cfg.get("needs_image") or freepik_model_needs_input_image(model_id):
+            src = source_image_url.strip()
+            if src and "input_image" not in extra_data:
+                extra_data["input_image"] = src
+            if src and "reference_images" not in extra_data:
+                extra_data["reference_images"] = [src]
+        payload = {
+            "prompt": prompt,
+            "model_name": model_id,
+            "aspect_ratio": normalized_aspect_ratio,
+            "poll": poll,
+            "extra_payload": extra_data,
+        }
+        return call_api(api_base, "/v1/freepik/generate-image", payload)
+
+    if provider == "freepik" and kind == "video":
+        payload = {
+            "image": source_image_url,
+            "prompt": prompt,
+            "model_name": model_id,
+            "aspect_ratio": normalized_aspect_ratio,
+            "duration_seconds": duration_seconds,
+            "camera_fixed": camera_fixed,
+            "poll": poll,
+            "extra_payload": extra_data,
+        }
+        return call_api(api_base, "/v1/freepik/generate-video", payload)
+
+    if provider == "higgsfield" and kind == "image":
+        if model_cfg.get("needs_image") or higgsfield_model_needs_image_input(model_id):
+            if source_image_url.strip() and "image_urls" not in extra_data:
+                print("extra_data", source_image_url)
+                extra_data["image_urls"] = [source_image_url.strip()]
+        payload = {
+            "prompt": prompt,
+            "model_id": model_id,
+            "aspect_ratio": normalized_aspect_ratio,
+            "poll": poll,
+            "extra_args": extra_data,
+        }
+        return call_api(api_base, "/v1/higgsfield/generate-image", payload)
+
+    raise RuntimeError(f"Unsupported model routing for model={model_id}")
+
+
+def _section_smoke_test(
+    api_base: str,
+    models: list[dict[str, Any]],
+    prompt: str,
+    source_image_url: str,
+    aspect_ratio: str,
+    poll: bool = True,
+) -> list[dict[str, Any]]:
+    report: list[dict[str, Any]] = []
+    for model_cfg in models:
+        started = time.perf_counter()
+        timestamp = datetime.now(timezone.utc).isoformat()
+        try:
+            result = _run_one_model(
+                api_base=api_base,
+                model_cfg=model_cfg,
+                prompt=prompt,
+                source_image_url=source_image_url,
+                aspect_ratio=aspect_ratio,
+                extra_raw="{}",
+                duration_seconds=5,
+                camera_fixed=False,
+                poll=poll,
+            )
+            image_urls, video_urls = _collect_urls(result)
+            top_image_urls = result.get("image_urls") if isinstance(result.get("image_urls"), list) else []
+            top_video_urls = result.get("video_urls") if isinstance(result.get("video_urls"), list) else []
+            image_urls = sorted({*image_urls, *[u for u in top_image_urls if isinstance(u, str)]})
+            video_urls = sorted({*video_urls, *[u for u in top_video_urls if isinstance(u, str)]})
+
+            report.append(
+                {
+                    "model": model_cfg["id"],
+                    "provider": model_cfg["provider"],
+                    "ok": True,
+                    "status": str(result.get("status") or "-"),
+                    "response_time_ms": result.get("_response_time_ms", round((time.perf_counter() - started) * 1000.0, 2)),
+                    "image_urls": _stringify_urls(image_urls),
+                    "video_urls": _stringify_urls(video_urls),
+                    "error": "",
+                }
+            )
+        except Exception as exc:
+            report.append(
+                {
+                    "model": model_cfg["id"],
+                    "provider": model_cfg["provider"],
+                    "ok": False,
+                    "status": "error",
+                    "response_time_ms": round((time.perf_counter() - started) * 1000.0, 2),
+                    "image_urls": "-",
+                    "video_urls": "-",
+                    "error": str(exc),
+                }
+            )
+    return report
 def _collect_urls(obj: Any) -> tuple[list[str], list[str]]:
     image_urls: set[str] = set()
     video_urls: set[str] = set()
@@ -192,6 +283,32 @@ def _collect_urls(obj: Any) -> tuple[list[str], list[str]]:
     return sorted(image_urls), sorted(video_urls)
 
 
+def with_api_timing(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        started = time.perf_counter()
+        timestamp = datetime.now(timezone.utc).isoformat()
+        try:
+            result = func(*args, **kwargs)
+            elapsed_ms = round((time.perf_counter() - started) * 1000.0, 2)
+            if isinstance(result, dict):
+                result["_api_timestamp"] = timestamp
+                result["_response_time_ms"] = elapsed_ms
+            return result
+        except Exception as exc:
+            elapsed_ms = round((time.perf_counter() - started) * 1000.0, 2)
+            raise RuntimeError(
+                f"{exc} | response_time_ms={elapsed_ms} | timestamp_utc={timestamp}"
+            ) from exc
+
+    return wrapper
+
+
+def _stringify_urls(values: list[str]) -> str:
+    return ", ".join(values) if values else "-"
+
+
+@with_api_timing
 def call_api(api_base: str, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     url = f"{api_base.rstrip('/')}{endpoint}"
     response = httpx.post(url, json=payload, timeout=600)
@@ -212,8 +329,14 @@ def call_api(api_base: str, endpoint: str, payload: dict[str, Any]) -> dict[str,
 def show_result(result: dict[str, Any]) -> None:
     status = str(result.get("status") or "").strip()
     task_id = result.get("task_id") or result.get("request_id")
+    response_time_ms = result.get("_response_time_ms")
+    api_timestamp = result.get("_api_timestamp")
     if status or task_id:
-        st.info(f"status={status or '-'} | task_id={task_id or '-'}")
+        st.info(
+            f"status={status or '-'} | task_id={task_id or '-'} | "
+            f"response_time_ms={response_time_ms if response_time_ms is not None else '-'} | "
+            f"timestamp_utc={api_timestamp or '-'}"
+        )
 
     explicit_error = result.get("error")
     response_obj = result.get("response") if isinstance(result.get("response"), dict) else {}
@@ -229,10 +352,12 @@ def show_result(result: dict[str, Any]) -> None:
     image_urls, video_urls = _collect_urls(result)
 
     if image_urls:
+        st.caption(f"image_urls: {', '.join(image_urls)}")
         for u in image_urls:
             st.image(u, use_container_width=True)
 
     if video_urls:
+        st.caption(f"video_urls: {', '.join(video_urls)}")
         for u in video_urls:
             st.video(u)
 
@@ -241,167 +366,173 @@ def show_result(result: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Freepik + Higgsfield Tester", layout="wide")
-    st.title("Freepik + Higgsfield Model Tester")
-
-    st.caption("Model dropdowns are loaded from internet docs when possible.")
+    st.set_page_config(page_title="Image/Video/Edit Model Tester", layout="wide")
+    st.title("Model Tester: Prompt-to-Image, Image-to-Video, Edit")
 
     api_base = st.text_input("FastAPI Base URL", value=API_BASE_DEFAULT)
+    default_source_image = st.text_input("Default source image URL", value=DEFAULT_IMAGE_URL)
 
-    freepik_image_models, freepik_video_models, freepik_src = fetch_freepik_models()
-    higgsfield_image_models, higgsfield_video_models, higgsfield_src = fetch_higgsfield_models()
-
-    col1, col2 = st.columns(2)
-    col1.info(f"Freepik models source: {freepik_src} | image={len(freepik_image_models)} video={len(freepik_video_models)}")
-    col2.info(f"Higgsfield models source: {higgsfield_src} | image={len(higgsfield_image_models)} video={len(higgsfield_video_models)}")
-
-    tab1, tab2, tab3, tab4 = st.tabs(
+    tab1, tab2, tab3 = st.tabs(
         [
-            "Freepik: generate-image",
-            "Freepik: generate-video",
-            "Higgsfield: generate-image",
-            "Higgsfield: generate-video",
+            "Image Models (Prompt-to-Image)",
+            "Image-to-Video Models",
+            "Edit Models (Image Editing / Style)",
         ]
     )
 
     with tab1:
-        model = st.selectbox("Freepik image model", freepik_image_models, key="f_img_model")
-        prompt = st.text_area("Prompt", value="fashion portrait, studio light", key="f_img_prompt")
-        img_aspect_options = freepik_image_aspect_options(model)
-        aspect_ratio = st.selectbox("Aspect ratio", img_aspect_options, index=0, key="f_img_ar")
-        input_image_url = st.text_input("Input image URL (required for kontext/edit models)", value=DEFAULT_IMAGE_URL, key="f_img_input")
-        poll = st.checkbox("Poll", value=True, key="f_img_poll")
-        extra_raw = st.text_area("extra_payload (JSON object, optional)", value="{}", key="f_img_extra")
+        selected_label = st.selectbox("Model", [m["label"] for m in PROMPT_TO_IMAGE_MODELS], key="img_models_select")
+        model_cfg = _find_model(PROMPT_TO_IMAGE_MODELS, selected_label)
+        prompt = st.text_area("Prompt", value="A futuristic eco-friendly city at sunrise, ultra detailed", key="img_models_prompt")
+        img_ar_options = (
+            higgsfield_image_aspect_options()
+            if model_cfg["provider"] == "higgsfield"
+            else freepik_image_aspect_options(model_cfg["id"])
+        )
+        aspect_ratio = st.selectbox("Aspect ratio", img_ar_options, index=0, key="img_models_ar")
+        extra_raw = st.text_area("Extra JSON payload/args", value="{}", key="img_models_extra")
+        st.caption(f"Provider: {model_cfg['provider']} | Model ID: {model_cfg['id']}")
 
-        if freepik_model_needs_input_image(model) and not input_image_url.strip():
-            st.warning("This model generally needs input image. Add Input image URL.")
-
-        if st.button("Run Freepik Image", key="run_f_img"):
-            extra_payload = _safe_json_loads(extra_raw) or {}
-            if input_image_url.strip() and "input_image" not in extra_payload:
-                extra_payload["input_image"] = input_image_url.strip()
-
-            payload = {
-                "prompt": prompt,
-                "model_name": model,
-                "aspect_ratio": aspect_ratio or None,
-                "poll": poll,
-                "extra_payload": extra_payload,
-            }
+        if st.button("Run Selected Image Model", key="run_img_model"):
             with st.spinner("Calling API..."):
                 try:
-                    result = call_api(api_base, "/v1/freepik/generate-image", payload)
+                    result = _run_one_model(
+                        api_base=api_base,
+                        model_cfg=model_cfg,
+                        prompt=prompt,
+                        source_image_url=default_source_image,
+                        aspect_ratio=aspect_ratio,
+                        extra_raw=extra_raw,
+                        duration_seconds=5,
+                        camera_fixed=False,
+                    )
                     show_result(result)
                 except Exception as exc:
                     st.error(str(exc))
+
+        poll_for_media = st.checkbox(
+            "Wait for media URLs (slower)",
+            value=True,
+            key="check_all_image_models_poll",
+        )
+        if st.button("Check All Image Models", key="check_all_image_models"):
+            with st.spinner("Running smoke checks for all prompt-to-image models..."):
+                rows = _section_smoke_test(
+                    api_base=api_base,
+                    models=PROMPT_TO_IMAGE_MODELS,
+                    prompt=prompt,
+                    source_image_url=default_source_image,
+                    aspect_ratio=aspect_ratio,
+                    poll=bool(poll_for_media),
+                )
+            st.dataframe(rows, use_container_width=True)
 
     with tab2:
-        model = st.selectbox("Freepik video model", freepik_video_models, key="f_vid_model")
-        prompt = st.text_area("Prompt", value="camera slowly pans left", key="f_vid_prompt")
-        image_url = st.text_input("Source image URL", value=DEFAULT_IMAGE_URL, key="f_vid_img")
+        selected_label = st.selectbox("Model", [m["label"] for m in IMAGE_TO_VIDEO_MODELS], key="i2v_models_select")
+        model_cfg = _find_model(IMAGE_TO_VIDEO_MODELS, selected_label)
+        prompt = st.text_area("Motion prompt", value="camera slowly pans left", key="i2v_models_prompt")
+        image_url = st.text_input("Source image URL", value=default_source_image, key="i2v_models_source")
+        aspect_ratio = st.selectbox("Aspect ratio", freepik_video_aspect_options(model_cfg["id"]), index=0, key="i2v_models_ar")
+        duration_seconds = st.selectbox("Duration (seconds)", [5, 10], index=0, key="i2v_models_duration")
+        camera_fixed = st.checkbox("Camera fixed", value=False, key="i2v_models_camera_fixed")
+        extra_raw = st.text_area("Extra JSON payload", value="{}", key="i2v_models_extra")
+        st.caption(f"Provider: {model_cfg['provider']} | Model ID: {model_cfg['id']}")
 
-        aspect_options = freepik_video_aspect_options(model)
-        aspect_ratio = st.selectbox("Aspect ratio", aspect_options, index=0, key="f_vid_ar")
-        duration_seconds = st.selectbox("Duration (seconds)", [5, 10], index=0, key="f_vid_duration")
-        camera_fixed = st.checkbox("Camera fixed", value=False, key="f_vid_camera_fixed")
-        poll = st.checkbox("Poll", value=True, key="f_vid_poll")
-        poll_timeout_seconds = st.number_input("Poll timeout (sec)", min_value=30, max_value=1800, value=600, step=30, key="f_vid_timeout")
-        poll_interval_seconds = st.number_input("Poll interval (sec)", min_value=1.0, max_value=30.0, value=3.0, step=0.5, key="f_vid_interval")
-        extra_raw = st.text_area("extra_payload (JSON object, optional)", value="{}", key="f_vid_extra")
-
-        if st.button("Run Freepik Video", key="run_f_vid"):
+        if st.button("Run Selected Image-to-Video Model", key="run_i2v_model"):
             if not image_url.strip():
-                st.error("Source image URL is required")
+                st.error("Source image URL is required.")
             else:
-                payload = {
-                    "image": image_url,
-                    "prompt": prompt,
-                    "model_name": model,
-                    "aspect_ratio": aspect_ratio or None,
-                    "duration_seconds": int(duration_seconds),
-                    "camera_fixed": bool(camera_fixed),
-                    "poll": poll,
-                    "poll_timeout_seconds": int(poll_timeout_seconds),
-                    "poll_interval_seconds": float(poll_interval_seconds),
-                    "extra_payload": _safe_json_loads(extra_raw) or {},
-                }
                 with st.spinner("Calling API..."):
                     try:
-                        result = call_api(api_base, "/v1/freepik/generate-video", payload)
+                        result = _run_one_model(
+                            api_base=api_base,
+                            model_cfg=model_cfg,
+                            prompt=prompt,
+                            source_image_url=image_url,
+                            aspect_ratio=aspect_ratio,
+                            extra_raw=extra_raw,
+                            duration_seconds=int(duration_seconds),
+                            camera_fixed=bool(camera_fixed),
+                        )
                         show_result(result)
                     except Exception as exc:
                         st.error(str(exc))
+
+        poll_for_media = st.checkbox(
+            "Wait for media URLs (slower)",
+            value=True,
+            key="check_all_i2v_models_poll",
+        )
+        if st.button("Check All Image-to-Video Models", key="check_all_i2v_models"):
+            if not image_url.strip():
+                st.error("Source image URL is required.")
+            else:
+                with st.spinner("Running smoke checks for all image-to-video models..."):
+                    rows = _section_smoke_test(
+                        api_base=api_base,
+                        models=IMAGE_TO_VIDEO_MODELS,
+                        prompt=prompt,
+                        source_image_url=image_url,
+                        aspect_ratio=aspect_ratio,
+                        poll=bool(poll_for_media),
+                    )
+                st.dataframe(rows, use_container_width=True)
 
     with tab3:
-        model = st.selectbox("Higgsfield image model", higgsfield_image_models, key="h_img_model")
-        prompt = st.text_area("Prompt", value="fashion portrait, studio light", key="h_img_prompt")
-        aspect_ratio = st.text_input("Aspect ratio", value="9:16", key="h_img_ar")
-        needs_edit_image = higgsfield_model_needs_image_input(model)
-        edit_image_url = ""
-        if needs_edit_image:
-            edit_image_url = st.text_input(
-                "Edit source image URL",
-                value=DEFAULT_IMAGE_URL,
-                key="h_img_edit_src",
-                help="Required for edit models like bytedance/seedream/v4/edit.",
-            )
-        poll = st.checkbox("Poll", value=True, key="h_img_poll")
-        extra_raw = st.text_area("extra_args (JSON object, optional)", value="{}", key="h_img_extra")
+        selected_label = st.selectbox("Model", [m["label"] for m in EDIT_MODELS], key="edit_models_select")
+        model_cfg = _find_model(EDIT_MODELS, selected_label)
+        prompt = st.text_area("Edit/style prompt", value="change style to cinematic fashion editorial", key="edit_models_prompt")
+        image_url = st.text_input("Input image URL", value=default_source_image, key="edit_models_source")
+        edit_ar_options = (
+            higgsfield_image_aspect_options()
+            if model_cfg["provider"] == "higgsfield"
+            else freepik_image_aspect_options(model_cfg["id"])
+        )
+        aspect_ratio = st.selectbox("Aspect ratio", edit_ar_options, index=0, key="edit_models_ar")
+        extra_raw = st.text_area("Extra JSON payload/args", value="{}", key="edit_models_extra")
+        st.caption(f"Provider: {model_cfg['provider']} | Model ID: {model_cfg['id']}")
 
-        if st.button("Run Higgsfield Image", key="run_h_img"):
-            extra_args = _safe_json_loads(extra_raw) or {}
-            if needs_edit_image:
-                src = (edit_image_url or DEFAULT_IMAGE_URL).strip()
-                if src and "image_urls" not in extra_args:
-                    extra_args["image_urls"] = [src]
-
-            payload = {
-                "prompt": prompt,
-                "model_id": model,
-                "aspect_ratio": aspect_ratio or None,
-                "poll": poll,
-                "extra_args": extra_args,
-            }
-            with st.spinner("Calling API..."):
-                try:
-                    result = call_api(api_base, "/v1/higgsfield/generate-image", payload)
-                    show_result(result)
-                except Exception as exc:
-                    st.error(str(exc))
-
-    with tab4:
-        model = st.selectbox("Higgsfield video model", higgsfield_video_models, key="h_vid_model")
-        prompt = st.text_area("Prompt", value="camera slowly pans left", key="h_vid_prompt")
-        image_url = st.text_input("Source image URL", value=DEFAULT_IMAGE_URL, key="h_vid_img")
-        poll = st.checkbox("Poll", value=True, key="h_vid_poll")
-        poll_timeout_seconds = st.number_input("Poll timeout (sec)", min_value=30, max_value=1800, value=600, step=30, key="h_vid_timeout")
-        poll_interval_seconds = st.number_input("Poll interval (sec)", min_value=1.0, max_value=30.0, value=3.0, step=0.5, key="h_vid_interval")
-        extra_raw = st.text_area("extra_args (JSON object, optional)", value="{}", key="h_vid_extra")
-
-        if st.button("Run Higgsfield Video", key="run_h_vid"):
+        if st.button("Run Selected Edit Model", key="run_edit_model"):
             if not image_url.strip():
-                st.error("Source image URL is required")
+                st.error("Input image URL is required.")
             else:
-                payload = {
-                    "image_url": image_url,
-                    "prompt": prompt,
-                    "model_id": model,
-                    "poll": poll,
-                    "poll_timeout_seconds": int(poll_timeout_seconds),
-                    "poll_interval_seconds": float(poll_interval_seconds),
-                    "extra_args": _safe_json_loads(extra_raw) or {},
-                }
                 with st.spinner("Calling API..."):
                     try:
-                        result = call_api(api_base, "/v1/higgsfield/generate-video", payload)
+                        result = _run_one_model(
+                            api_base=api_base,
+                            model_cfg=model_cfg,
+                            prompt=prompt,
+                            source_image_url=image_url,
+                            aspect_ratio=aspect_ratio,
+                            extra_raw=extra_raw,
+                            duration_seconds=5,
+                            camera_fixed=False,
+                        )
                         show_result(result)
                     except Exception as exc:
                         st.error(str(exc))
+
+        poll_for_media = st.checkbox(
+            "Wait for media URLs (slower)",
+            value=True,
+            key="check_all_edit_models_poll",
+        )
+        if st.button("Check All Edit Models", key="check_all_edit_models"):
+            if not image_url.strip():
+                st.error("Input image URL is required.")
+            else:
+                with st.spinner("Running smoke checks for all edit models..."):
+                    rows = _section_smoke_test(
+                        api_base=api_base,
+                        models=EDIT_MODELS,
+                        prompt=prompt,
+                        source_image_url=image_url,
+                        aspect_ratio=aspect_ratio,
+                        poll=bool(poll_for_media),
+                    )
+                st.dataframe(rows, use_container_width=True)
 
 
 if __name__ == "__main__":
     main()
-
-
-
 
