@@ -1,4 +1,4 @@
-"""
+﻿"""
 Freepik API client for image and video generation.
 """
 
@@ -161,6 +161,23 @@ def _choices_from_reason(reason: str) -> list[str]:
     if out:
         return out
     return re.findall(r"\b\d+\b", reason or "")
+
+
+def _video_poll_model_aliases(model: str) -> list[str]:
+    aliases = [model]
+    normalized = (model or "").strip().lower()
+    if normalized == "kling-v2-6-pro":
+        aliases.append("kling-v2-6")
+    elif normalized == "kling-v3-pro":
+        aliases.append("kling-v3")
+    elif normalized.startswith("kling-v3-omni-"):
+        aliases.append("kling-v3-omni")
+
+    unique_aliases: list[str] = []
+    for alias in aliases:
+        if alias and alias not in unique_aliases:
+            unique_aliases.append(alias)
+    return unique_aliases
 
 
 async def _create_image_task_with_fallbacks(
@@ -589,12 +606,10 @@ async def generate_video(
             resolved_task_path = f"{resolved_task_path.rstrip('/')}/{task_id}"
         poll_paths = [resolved_task_path]
     else:
-        default_poll_paths = [
-            f"/v1/ai/image-to-video/{model}/{task_id}",
-            f"/v1/ai/video/{model}/{task_id}",
-        ]
-        if model.startswith("kling-v3-omni-"):
-            default_poll_paths.append(f"/v1/ai/video/kling-v3-omni/{task_id}")
+        default_poll_paths: list[str] = []
+        for alias in _video_poll_model_aliases(model):
+            default_poll_paths.append(f"/v1/ai/image-to-video/{alias}/{task_id}")
+            default_poll_paths.append(f"/v1/ai/video/{alias}/{task_id}")
         preferred = f"{resolved_create_path.rstrip('/')}/{task_id}"
         poll_paths = [preferred] + [p for p in default_poll_paths if p != preferred]
 

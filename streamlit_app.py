@@ -182,6 +182,7 @@ def _section_smoke_test(
     poll: bool = True,
 ) -> list[dict[str, Any]]:
     report: list[dict[str, Any]] = []
+    failure_statuses = {"failed", "error", "nsfw", "timeout", "canceled", "cancelled", "rejected", "expired"}
     for model_cfg in models:
         started = time.perf_counter()
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -202,17 +203,29 @@ def _section_smoke_test(
             top_video_urls = result.get("video_urls") if isinstance(result.get("video_urls"), list) else []
             image_urls = sorted({*image_urls, *[u for u in top_image_urls if isinstance(u, str)]})
             video_urls = sorted({*video_urls, *[u for u in top_video_urls if isinstance(u, str)]})
+            status = str(result.get("status") or "-")
+            status_l = status.lower()
+            error_text = str(result.get("error") or "").strip()
+            ok = status_l not in failure_statuses and not error_text
+            if model_cfg["kind"] == "video" and status_l in {"completed", "success", "succeeded", "done", "finished"} and not video_urls:
+                ok = False
+                if not error_text:
+                    error_text = "Generation completed but no video URL was returned."
+            if model_cfg["kind"] == "image" and status_l in {"completed", "success", "succeeded", "done", "finished"} and not image_urls:
+                ok = False
+                if not error_text:
+                    error_text = "Generation completed but no image URL was returned."
 
             report.append(
                 {
                     "model": model_cfg["id"],
                     "provider": model_cfg["provider"],
-                    "ok": True,
-                    "status": str(result.get("status") or "-"),
+                    "ok": ok,
+                    "status": status,
                     "response_time_ms": result.get("_response_time_ms", round((time.perf_counter() - started) * 1000.0, 2)),
                     "image_urls": _stringify_urls(image_urls),
                     "video_urls": _stringify_urls(video_urls),
-                    "error": "",
+                    "error": error_text,
                 }
             )
         except Exception as exc:
@@ -326,7 +339,7 @@ def call_api(api_base: str, endpoint: str, payload: dict[str, Any]) -> dict[str,
     return response.json()
 
 
-def show_result(result: dict[str, Any]) -> None:
+def show_result(result: dict[str, Any], expected_media: str = "any") -> None:
     status = str(result.get("status") or "").strip()
     task_id = result.get("task_id") or result.get("request_id")
     response_time_ms = result.get("_response_time_ms")
@@ -344,24 +357,31 @@ def show_result(result: dict[str, Any]) -> None:
     if isinstance(response_obj, dict):
         nested_error = response_obj.get("error") or response_obj.get("message") or response_obj.get("detail")
 
+    has_error = False
     if explicit_error:
         st.error(str(explicit_error))
+        has_error = True
     elif nested_error and str(status).lower() in {"failed", "error", "nsfw", "timeout", "canceled", "cancelled"}:
         st.error(str(nested_error))
+        has_error = True
 
     image_urls, video_urls = _collect_urls(result)
 
-    if image_urls:
+    show_images = expected_media in {"any", "image"}
+    show_videos = expected_media in {"any", "video"}
+
+    if show_images and image_urls:
         st.caption(f"image_urls: {', '.join(image_urls)}")
         for u in image_urls:
             st.image(u, use_container_width=True)
 
-    if video_urls:
+    if show_videos and video_urls:
         st.caption(f"video_urls: {', '.join(video_urls)}")
         for u in video_urls:
             st.video(u)
 
-    if not image_urls and not video_urls:
+    has_any_media = (show_images and bool(image_urls)) or (show_videos and bool(video_urls))
+    if not has_any_media and not has_error:
         st.warning("No media URL yet. Generation is likely still processing.")
 
 
@@ -406,7 +426,7 @@ def main() -> None:
                         duration_seconds=5,
                         camera_fixed=False,
                     )
-                    show_result(result)
+                    show_result(result, expected_media="image")
                 except Exception as exc:
                     st.error(str(exc))
 
@@ -454,7 +474,7 @@ def main() -> None:
                             duration_seconds=int(duration_seconds),
                             camera_fixed=bool(camera_fixed),
                         )
-                        show_result(result)
+                        show_result(result, expected_media="video")
                     except Exception as exc:
                         st.error(str(exc))
 
@@ -508,7 +528,7 @@ def main() -> None:
                             duration_seconds=5,
                             camera_fixed=False,
                         )
-                        show_result(result)
+                        show_result(result, expected_media="image")
                     except Exception as exc:
                         st.error(str(exc))
 
