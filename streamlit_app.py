@@ -33,8 +33,8 @@ EDIT_MODELS: list[dict[str, Any]] = [
     {"label": "seedream-v4-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v4-edit", "needs_image": True},
     {"label": "seedream-v4-5-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v4-5-edit", "needs_image": True},
     {"label": "seedream-v5-lite-edit (freepik)", "provider": "freepik", "kind": "image", "id": "seedream-v5-lite-edit", "needs_image": True},
-    {"label": "gpt-1.5 (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5", "needs_image": True},
-    {"label": "gpt-1.5-high (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5-high", "needs_image": True},
+    # {"label": "gpt-1.5 (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5", "needs_image": True},
+    # {"label": "gpt-1.5-high (freepik)", "provider": "freepik", "kind": "image", "id": "gpt-1.5-high", "needs_image": True},
     {"label": "flux-kontext-pro (freepik)", "provider": "freepik", "kind": "image", "id": "flux-kontext-pro", "needs_image": True},
     {"label": "higgsfield-ai/soul/reference (higgsfield)", "provider": "higgsfield", "kind": "image", "id": "higgsfield-ai/soul/reference", "needs_image": True},
 ]
