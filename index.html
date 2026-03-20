@@ -195,7 +195,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
       <h2>Generated Images</h2>
       <section class="grid" aria-label="Model image comparison">
         <figure>
-          <img class="thumb" src="Flux-2-pro.jpeg" alt="Flux-2-pro generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/Flux-2-pro.jpeg" alt="Flux-2-pro generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">flux-2-pro</div>
             <div class="model-time">Time: 23 secs</div>
@@ -203,7 +203,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="Flux-2-turbo.png" alt="Flux-2-turbo generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/Flux-2-turbo.png" alt="Flux-2-turbo generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">flux-2-turbo</div>
             <div class="model-time">Time: 4.6 secs</div>
@@ -211,7 +211,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="flux-dev.jpeg" alt="flux-dev generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/flux-dev.jpeg" alt="flux-dev generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">flux-dev</div>
             <div class="model-time">Time: 7.6 secs</div>
@@ -219,7 +219,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="flux-pro-v1.jpeg" alt="flux-pro-v1 generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/flux-pro-v1.jpeg" alt="flux-pro-v1 generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">flux-pro-v1-1</div>
             <div class="model-time">Time: 8 secs</div>
@@ -227,7 +227,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="higgsfield%20soul%20standard.png" alt="higgsfield soul standard generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/higgsfield%20soul%20standard.png" alt="higgsfield soul standard generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">soul-standard</div>
             <div class="model-time">Time: 13 secs</div>
@@ -235,7 +235,7 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="runway.png" alt="runway generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/runway.png" alt="runway generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">runway</div>
             <div class="model-time">Time: 40 secs</div>
@@ -243,10 +243,112 @@ Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low r
         </figure>
 
         <figure>
-          <img class="thumb" src="seedream%20v5%20lite.jpeg" alt="seedream v5 lite generated image" loading="lazy" />
+          <img class="thumb" src="public/promptToImage/seedream%20v5%20lite.jpeg" alt="seedream v5 lite generated image" loading="lazy" />
           <figcaption>
             <div class="model-name">seedream-v5-lite</div>
             <div class="model-time">Time: 38 secs</div>
+          </figcaption>
+        </figure>
+      </section>
+
+      <header>
+        <h1>Background Remove</h1>
+        <div class="prompt-wrap">
+          <h2>Prompt</h2>
+          <p class="prompt-text">Remove the background completely and keep only the main product subject. Use clean transparent-style cutout edges and preserve fine details.</p>
+          <div class="meta">Use case: Freepik Edit background removal comparison.</div>
+        </div>
+      </header>
+      <h2>Source Image</h2>
+      <section class="grid" aria-label="Background remove source image">
+        <figure>
+          <img class="thumb" src="public/backgroundRemove/sourceimage.png" alt="Background remove source image" loading="lazy" />
+          <figcaption>
+            <div class="model-time">Input reference image</div>
+          </figcaption>
+        </figure>
+      </section>
+      <h2>Background Remove Results</h2>
+      <section class="grid" aria-label="Background remove comparison">
+        <figure>
+          <img class="thumb" src="public/backgroundRemove/fluxkoentexpro.jpeg" alt="Flux Koentenx pro background remove result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Flux Koentenx pro</div>
+            <div class="model-time">Time: 13.97 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/backgroundRemove/seedreamv5liteedit.jpeg" alt="Seedream v5 lite edit background remove result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v5 lite edit</div>
+            <div class="model-time">Time: 31.75 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/backgroundRemove/seedreamv4-5-edit.jpeg" alt="Seedream v4-5 edit background remove result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v4-5 edit</div>
+            <div class="model-time">Time: 24.94 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/backgroundRemove/seedreamv4edit.jpeg" alt="Seedream v4 edit background remove result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v4 edit</div>
+            <div class="model-time">Time: 21.52 secs</div>
+          </figcaption>
+        </figure>
+      </section>
+
+      <header>
+        <h1>Smart Erase / Object Removal (Freepik Edit)</h1>
+        <div class="prompt-wrap">
+          <h2>Prompt</h2>
+          <p class="prompt-text">Remove the lamp from the scene entirely. Fill the removed area seamlessly using surrounding textures and context-aware inpainting. Ensure the background is naturally reconstructed, matching the existing lighting, shadows, color tones, and perspective of the room. Preserve surface details such as wall texture, floor patterns, or furniture edges that were behind or around the lamp. Maintain realistic depth and consistency so no trace of the lamp remains.
+
+A boy is sitting in the scene-keep him unchanged and sharply in focus. Do not alter his posture, expression, or clothing. Ensure the edited area blends naturally with the rest of the image, with smooth transitions, accurate shadow continuation, and no visible artifacts, blurring, or distortions.
+
+The final image should look completely natural, as if the lamp was never present.</p>
+          <div class="meta">Use case: Smart erase/object removal comparison.</div>
+        </div>
+      </header>
+      <h2>Source Image</h2>
+      <section class="grid" aria-label="Smart erase source image">
+        <figure>
+          <img class="thumb" src="public/smartremoval/sourceimage.png" alt="Smart erase source image" loading="lazy" />
+          <figcaption>
+            <div class="model-time">Input reference image</div>
+          </figcaption>
+        </figure>
+      </section>
+      <h2>Smart Erase / Object Removal Results</h2>
+      <section class="grid" aria-label="Smart erase comparison">
+        <figure>
+          <img class="thumb" src="public/smartremoval/fluxkontextpro.jpeg" alt="Flux Koentenx pro smart erase result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Flux Koentenx pro</div>
+            <div class="model-time">Time: 32.41 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/smartremoval/seedreamv5edit.jpeg" alt="Seedream v5 lite edit smart erase result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v5 lite edit</div>
+            <div class="model-time">Time: 32.46 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/smartremoval/seedreamv4-5.jpeg" alt="Seedream v4-5 edit smart erase result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v4-5 edit</div>
+            <div class="model-time">Time: 32.58 secs</div>
+          </figcaption>
+        </figure>
+        <figure>
+          <img class="thumb" src="public/smartremoval/seedreamv4edit.jpeg" alt="Seedream v4 edit smart erase result" loading="lazy" />
+          <figcaption>
+            <div class="model-name">Seedream v4 edit</div>
+            <div class="model-time">Time: 22.65 secs</div>
           </figcaption>
         </figure>
       </section>
