@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prompt to Image Models - Comparison Report</title>
+    <style>
+      :root {
+        --bg0: #070a12;
+        --bg1: #0b0f17;
+        --card: rgba(255, 255, 255, 0.07);
+        --text: #e8eefc;
+        --muted: rgba(232, 238, 252, 0.75);
+        --border: rgba(255, 255, 255, 0.12);
+        --shadow: rgba(0, 0, 0, 0.35);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+        background: radial-gradient(1000px 500px at 20% 0%, rgba(122, 162, 255, 0.18), transparent 55%),
+          radial-gradient(800px 500px at 80% 10%, rgba(255, 182, 122, 0.12), transparent 50%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        color: var(--text);
+      }
+      header {
+        padding: 34px 18px 18px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 24px;
+        letter-spacing: 0.2px;
+      }
+      .prompt-wrap {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px 16px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .prompt-label {
+        color: var(--text);
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+        text-align: center;
+      }
+      .prompt-text {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 16px 18px 46px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+      }
+      figure {
+        margin: 0;
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 10px 30px var(--shadow);
+        transition: transform 140ms ease, border-color 140ms ease;
+      }
+      figure:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+      img {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        height: 250px;
+        object-fit: contain;
+        background: rgba(0,0,0,0.18);
+        cursor: zoom-in;
+      }
+      img.thumb:focus {
+        outline: 2px solid rgba(122, 162, 255, 0.7);
+        outline-offset: 2px;
+      }
+      @media (max-width: 520px) {
+        img { height: 220px; }
+      }
+      figcaption {
+        padding: 11px 12px;
+        font-size: 14px;
+        color: var(--text);
+        border-top: 1px solid var(--border);
+        text-align: center;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .model-time {
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .meta {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      /* Lightbox (click to enlarge) */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 999;
+      }
+      .lightbox.open { display: flex; }
+      .lightbox-inner {
+        width: min(1100px, 100%);
+        border: 1px solid var(--border);
+        background: rgba(15, 20, 34, 0.94);
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+        overflow: hidden;
+        position: relative;
+      }
+      .lightbox-inner img {
+        height: auto;
+        max-height: 85vh;
+        width: 100%;
+        object-fit: contain;
+        background: rgba(0,0,0,0.2);
+        cursor: zoom-out;
+      }
+      .lightbox-close {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(0,0,0,0.35);
+        color: var(--text);
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 22px;
+        line-height: 38px;
+      }
+      .lightbox-close:focus {
+        outline: 2px solid rgba(122, 162, 255, 0.7);
+        outline-offset: 2px;
+      }
+      .lightbox-caption {
+        padding: 10px 14px 14px;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Prompt to Image Models Comparison Report</h1>
+      <div class="prompt-wrap">
+        <h2>This is the prompt which generated these images</h2>
+        <p class="prompt-text">A cinematic, ultra-realistic photograph of a young street photographer standing in a busy night market in Tokyo during light rain. Neon signs in Japanese glow in the background, reflecting on wet pavement. The subject is holding a vintage camera, wearing a transparent raincoat with detailed water droplets visible.<br />
+Lighting: soft diffused lighting with neon highlights (pink, blue, purple), shallow depth of field (f/1.8), bokeh in the background.<br />
+Composition: rule of thirds, subject slightly off-center, candid moment.<br />
+Details: highly detailed skin texture, realistic reflections, accurate shadows, wet surfaces, motion blur from passing people.<br />
+Text element: a visible shop sign that clearly reads "ラーメン" (ramen in Japanese), rendered correctly.<br />
+Style: shot on Sony A7R IV, 85mm lens, photorealistic, 8k, HDR.<br />
+Negative prompt: blurry face, distorted hands, extra fingers, bad anatomy, low resolution, oversaturated, cartoonish, watermark, text errors.</p>
+        <div class="meta">Images are shown below with their model names and generation time.</div>
+      </div>
+    </header>
+
+    <main>
+      <h2>Generated Images</h2>
+      <section class="grid" aria-label="Model image comparison">
+        <figure>
+          <img class="thumb" src="Flux-2-pro.jpeg" alt="Flux-2-pro generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">flux-2-pro</div>
+            <div class="model-time">Time: 23 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="Flux-2-turbo.png" alt="Flux-2-turbo generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">flux-2-turbo</div>
+            <div class="model-time">Time: 4.6 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="flux-dev.jpeg" alt="flux-dev generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">flux-dev</div>
+            <div class="model-time">Time: 7.6 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="flux-pro-v1.jpeg" alt="flux-pro-v1 generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">flux-pro-v1-1</div>
+            <div class="model-time">Time: 8 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="higgsfield%20soul%20standard.png" alt="higgsfield soul standard generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">soul-standard</div>
+            <div class="model-time">Time: 13 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="runway.png" alt="runway generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">runway</div>
+            <div class="model-time">Time: 40 secs</div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img class="thumb" src="seedream%20v5%20lite.jpeg" alt="seedream v5 lite generated image" loading="lazy" />
+          <figcaption>
+            <div class="model-name">seedream-v5-lite</div>
+            <div class="model-time">Time: 38 secs</div>
+          </figcaption>
+        </figure>
+      </section>
+    </main>
+
+    <!-- Click-to-enlarge overlay -->
+    <div id="lightbox" class="lightbox" aria-hidden="true">
+      <div class="lightbox-inner" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close image preview">&times;</button>
+        <img id="lightbox-img" src="" alt="" />
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const lightboxCaption = document.getElementById('lightbox-caption');
+        const lightboxClose = document.getElementById('lightbox-close');
+
+        function openFromThumb(thumb) {
+          const figure = thumb.closest('figure');
+          const captionEl = figure ? figure.querySelector('figcaption') : null;
+          const nameEl = figure ? figure.querySelector('.model-name') : null;
+          const timeEl = figure ? figure.querySelector('.model-time') : null;
+
+          lightboxImg.src = thumb.getAttribute('src') || '';
+          lightboxImg.alt = thumb.alt || 'Preview image';
+          const name = nameEl ? nameEl.textContent.trim() : (captionEl ? captionEl.textContent.trim() : '');
+          const time = timeEl ? timeEl.textContent.trim() : '';
+          lightboxCaption.textContent = time ? `${name} · ${time}` : name;
+
+          lightbox.classList.add('open');
+          lightbox.setAttribute('aria-hidden', 'false');
+          lightboxClose.focus();
+        }
+
+        function closeLightbox() {
+          lightbox.classList.remove('open');
+          lightbox.setAttribute('aria-hidden', 'true');
+          lightboxImg.src = '';
+          lightboxCaption.textContent = '';
+        }
+
+        document.querySelectorAll('img.thumb').forEach((thumb) => {
+          thumb.tabIndex = 0; // allows keyboard focus
+          thumb.addEventListener('click', function () {
+            openFromThumb(thumb);
+          });
+          thumb.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') openFromThumb(thumb);
+            if (e.key === ' ') {
+              e.preventDefault();
+              openFromThumb(thumb);
+            }
+          });
+        });
+
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', function (e) {
+          // Close when clicking the backdrop, not the inner dialog.
+          if (e.target === lightbox) closeLightbox();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+        });
+      })();
+    </script>
+  </body>
+</html>
+
